@@ -1,0 +1,21 @@
+.venv/
+tinyllama-model/
+tinyllama-tokenizer/
+*.log
+sentence-transformers/
+.vscode/
+.dbus-keyrings/
+.gitconfig
+.ipynb_checkpoints/
+.ipython/
+.lesshst
+AppData/
+Calibre Library/
+Contacts/
+Downloads/
+Favorites/
+IdeaProjects/
+IntelGraphicsProfiles/
+Links/
+Music/
+My Drive/
