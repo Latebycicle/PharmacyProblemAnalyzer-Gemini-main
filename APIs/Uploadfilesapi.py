@@ -1,3 +1,4 @@
+#Api to embed and upload files to mongoDB 
 from flask import Flask, request, jsonify
 from llama_index.core import SimpleDirectoryReader, VectorStoreIndex, ServiceContext, StorageContext
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding

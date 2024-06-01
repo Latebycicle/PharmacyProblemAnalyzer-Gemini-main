@@ -1,4 +1,4 @@
-#api to query
+#Api to query mongoDB and use files as context
 from flask import Flask, request, jsonify
 import torch
 from transformers import pipeline
