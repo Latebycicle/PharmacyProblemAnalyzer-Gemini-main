@@ -1,21 +1,57 @@
+# Virtual environments
 .venv/
+venv/
+env/
+ENV/
+
+# Environment variables
+.env
+.env.local
+
+# Model cache directories
 tinyllama-model/
 tinyllama-tokenizer/
-*.log
 sentence-transformers/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Logs
+*.log
+logs/
+
+# IDE/Editor files
 .vscode/
-.dbus-keyrings/
-.gitconfig
+.idea/
+*.swp
+*.swo
+*~
+
+# Jupyter Notebooks
 .ipynb_checkpoints/
-.ipython/
-.lesshst
-AppData/
-Calibre Library/
-Contacts/
-Downloads/
-Favorites/
-IdeaProjects/
-IntelGraphicsProfiles/
-Links/
-Music/
-My Drive/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+temp_files/
+tmp/
+
+# User-specific files (remove these as they're too broad)
+# .dbus-keyrings/
+# .gitconfig
+# .ipython/
+# .lesshst
+# AppData/
+# Calibre Library/
+# Contacts/
+# Downloads/
+# Favorites/
+# IdeaProjects/
+# IntelGraphicsProfiles/
+# Links/
+# Music/
+# My Drive/
