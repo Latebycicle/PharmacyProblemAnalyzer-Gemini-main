@@ -1,3 +1,10 @@
+"""
+Pharmacy Problem Analyzer - Streamlit Web Interface
+
+This module provides a Streamlit-based web interface for querying pharmacy problems
+using AI-powered vector search and retrieval-augmented generation (RAG).
+"""
+
 import streamlit as st
 import os
 from pymongo import MongoClient
@@ -8,73 +15,121 @@ from llama_index.vector_stores.mongodb import MongoDBAtlasVectorSearch
 from llama_index.core import StorageContext
 from llama_index.core import VectorStoreIndex
 
+from config import Config
 
-# Check if 'key' already exists in session_state
-# If not, then initialize it
-# web app config
-DB_NAME = "langchain_demo"
-COLLECTION_NAME = 'collection_of_text_blobs'
-INDEX_NAME = 'Indexx'
+# Initialize configuration
+try:
+    Config.validate_config()
+except ValueError as e:
+    st.error(f"Configuration Error: {e}")
+    st.stop()
 
-dbName = "langchain_demo"
-collectionName = "collection_of_text_blobs"
-# web app config, configure the streamlit app as you'd like
-st.set_page_config(page_title= "Page title",layout="wide", page_icon="📙")
-# App title to be displayed at the top of the app, could be same as page title if you like
-st.title("App title")
-API_KEY = 'AIzaSyA3xX1ZaJGwFO2KNwS3wR6oj4ZCMM9xkX0'
-uri = "mongodb+srv://geminiuser:1234@cluster0.nurmebz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
-client = MongoClient(uri)
+# Set Google API key
+os.environ["GOOGLE_API_KEY"] = Config.GOOGLE_API_KEY
 
-#genai.configure(api_key=API_KEY)
+# Configure Streamlit app
+st.set_page_config(
+    page_title=Config.PAGE_TITLE,
+    layout="wide",
+    page_icon="🏥"
+)
+st.title(Config.APP_TITLE)
 
-#from langchain_google_genai import GoogleGenerativeAIEmbeddings
+@st.cache_resource
+def initialize_components():
+    """Initialize and cache AI components for better performance."""
+    try:
+        # Set up MongoDB client
+        mongodb_client = MongoClient(Config.MONGODB_URI)
+        
+        # Load Google Gemini embedding model
+        embed_model = GeminiEmbedding(model_name=Config.EMBEDDING_MODEL)
+        
+        # Load Gemini model to be used as the LLM
+        llm = Gemini(model=Config.GEMINI_MODEL)
+        
+        # Create llama_index service context
+        service_context = ServiceContext.from_defaults(embed_model=embed_model, llm=llm)
+        
+        # Set up the vector store
+        vector_store = MongoDBAtlasVectorSearch(
+            mongodb_client=mongodb_client,
+            db_name=Config.DB_NAME,
+            collection_name=Config.COLLECTION_NAME,
+            index_name=Config.INDEX_NAME
+        )
+        
+        # Create the vector store index
+        storage_context = StorageContext.from_defaults(vector_store=vector_store)
+        index = VectorStoreIndex.from_vector_store(
+            vector_store=vector_store,
+            service_context=service_context
+        )
+        
+        # Set up the query engine
+        query_engine = index.as_query_engine()
+        
+        return query_engine
+        
+    except Exception as e:
+        st.error(f"Failed to initialize components: {e}")
+        return None
 
-google_api_key = API_KEY
-os.environ["GOOGLE_API_KEY"] = google_api_key
+# Initialize query engine
+query_engine = initialize_components()
 
+if query_engine is None:
+    st.error("Failed to initialize the system. Please check your configuration.")
+    st.stop()
 
-# set up mongodb client
-mongodb_client = MongoClient(uri)
-
-# load google gemini embedding model
-embed_model = GeminiEmbedding(model_name="models/embedding-001")
-
-# load gemini model to be used as the LLM
-llm = Gemini(model="models/gemini-pro")
-
-# create llama_index service context
-service_context = ServiceContext.from_defaults(embed_model=embed_model, llm=llm)
-
-# set up the vectore store with the details, to have access to the specific data
-vector_store = MongoDBAtlasVectorSearch(mongodb_client = mongodb_client, db_name = DB_NAME, collection_name = COLLECTION_NAME, index_name  = INDEX_NAME)
-
-# Create the vector store and index and the pipeline for vector search will be created
-storage_context = StorageContext.from_defaults(vector_store=vector_store)
-index = VectorStoreIndex.from_vector_store(vector_store=vector_store, service_context=service_context)
-
-# set up the created index as a query engine
-query_llm = index.as_query_engine()
-
-# chat interface for consistent queries
-if "messages" not in st.session_state: # chats for each session will be displayed
+# Initialize chat history
+if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Display for all the messages
+# Display chat history
 for message, kind in st.session_state.messages:
-        with st.chat_message(kind):
-            st.markdown(message)
-            
-prompt = st.chat_input("Ask your questions ...")
+    with st.chat_message(kind):
+        st.markdown(message)
+
+# Chat input
+prompt = st.chat_input("Ask your questions about pharmacy problems...")
 
 if prompt:
-    # Handling prompts and rendering to the chat interface
+    # Display user message
     st.chat_message("user").markdown(prompt)
-    st.session_state.messages.append([prompt, "user"]) # updating the list of prompts 
+    st.session_state.messages.append([prompt, "user"])
+    
+    # Generate and display AI response
+    with st.spinner("Generating response..."):
+        try:
+            answer = query_engine.query(prompt)
+            if answer:
+                st.chat_message("ai").markdown(str(answer))
+                st.session_state.messages.append([str(answer), "ai"])
+            else:
+                st.chat_message("ai").markdown("I'm sorry, I couldn't generate a response to your question.")
+                st.session_state.messages.append(["I'm sorry, I couldn't generate a response to your question.", "ai"])
+        except Exception as e:
+            error_msg = f"An error occurred while processing your question: {e}"
+            st.chat_message("ai").markdown(error_msg)
+            st.session_state.messages.append([error_msg, "ai"])
 
-    # using the query engine to get response, rendering the answer and adding to conversation history
-    with st.spinner("Generating response"):
-        answer = query_llm.query(prompt)
-        if answer:
-            st.chat_message("ai").markdown(answer)
-            st.session_state.messages.append([answer, "ai"])
+# Sidebar with information
+with st.sidebar:
+    st.header("About")
+    st.markdown("""
+    This AI-powered pharmacy assistant helps analyze and understand common pharmacy problems by:
+    
+    - 🔍 **Vector Search**: Uses semantic search to find relevant information
+    - 🤖 **AI Analysis**: Leverages Google Gemini for intelligent responses
+    - 📚 **Knowledge Base**: Draws from uploaded pharmacy documents and reports
+    - 💬 **Interactive Chat**: Provides conversational interface for easy querying
+    """)
+    
+    st.header("How to Use")
+    st.markdown("""
+    1. Type your question about pharmacy problems in the chat input
+    2. The system will search through the knowledge base
+    3. AI will provide a comprehensive answer based on relevant documents
+    4. Continue the conversation for follow-up questions
+    """)
